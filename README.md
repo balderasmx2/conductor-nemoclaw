@@ -10,7 +10,7 @@
 
 In M&E post-production, bad files travel silently through the pipeline until someone catches them — usually at the worst possible moment.
 
-A single out-of-spec clip going into a batch upscale job (wrong frame rate, wrong resolution, wrong audio settings) means everything gets reprocessed. Two days lost. Downstream departments affected. Nobody knows what happened because the production manager only assigns tasks — there is no visibility across the pipeline.
+A single out-of-spec clip going into a batch upscale job means everything gets reprocessed. Wrong frame rate, wrong resolution, wrong audio settings — Topaz processes them all anyway. Two days lost. Downstream departments affected. Nobody knows what happened.
 
 CONDUCTOR catches the problem before it starts.
 
@@ -22,9 +22,9 @@ CONDUCTOR is a QC Agent for Media & Entertainment post-production. It runs insid
 
 The agent:
 1. Scans a folder of MP4/MOV files
-2. Runs ffprobe on each file to extract technical specs
-3. Diagnoses issues: wrong resolution, wrong fps, wrong audio, short clips
-4. Generates a JSON + PDF report with actionable diagnosis per file
+2. Runs ffprobe on each file to extract exact technical specs
+3. Diagnoses issues with precise failure reasons
+4. Generates a JSON + PDF report — actionable, shareable, timestamped
 5. All inside a sandboxed OpenShell environment (Landlock + seccomp + netns)
 
 ---
@@ -41,18 +41,16 @@ The agent:
 
 ## What CONDUCTOR Diagnoses
 
-| Check | Method | Confidence |
-|-------|--------|------------|
-| Resolution (4K 3840x2160) | ffprobe | Exact |
-| Asymmetric resolution (3840x2048) | ffprobe | Exact |
-| Frame rate — flags 18fps, 29fps, 60fps | ffprobe | Exact |
-| Audio sample rate (requires 48kHz) | ffprobe | Exact |
-| Missing audio track | ffprobe | Exact |
-| Short clip under 1 second | ffprobe | Exact |
-| Black frames (>0.5s) | ffmpeg blackdetect | Confirmed |
-| Freeze frames (>1s) | ffmpeg freezedetect | Confirmed |
+All checks use ffprobe exact values — no estimation, no thresholds, no false positives.
 
-All checks use ffprobe and ffmpeg exact values — no thresholds, no guessing, no false positives.
+| Check | Method | Example failure |
+|-------|--------|-----------------|
+| Resolution must be 4K (3840x2160) | ffprobe | 1280x720 — not 4K |
+| Asymmetric resolution | ffprobe | 3840x2048 — height wrong |
+| Frame rate must be 24fps | ffprobe | 18fps, 29fps, 60fps flagged |
+| Audio sample rate must be 48kHz | ffprobe | 44.1kHz — sync drift risk |
+| Missing audio track | ffprobe | No audio stream found |
+| Short clip under 1 second | ffprobe | 0.166s — unusable for broadcast |
 
 ---
 
@@ -64,7 +62,7 @@ All checks use ffprobe and ffmpeg exact values — no thresholds, no guessing, n
 - OpenClaw TUI 2026.4.24
 - Qwen3.6-35B-A3B-FP8 via vLLM (local inference)
 - ffprobe / ffmpeg (installed by agent inside sandbox)
-- Node.js jsPDF / Python fpdf2 (PDF report generation inside sandbox)
+- Node.js jsPDF / Python fpdf2 (PDF report generation)
 
 ---
 
@@ -165,7 +163,7 @@ Dell GB10 Grace Blackwell
 - NVIDIA GB10 Superchip GPU
 - 128GB unified memory (CPU + GPU shared)
 - Ubuntu Linux 24.04 LTS (native, not WSL)
-- Always-on, offline capable after model download
+- Offline capable after model download
 
 ---
 
