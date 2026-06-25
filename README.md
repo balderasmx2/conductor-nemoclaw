@@ -2,7 +2,17 @@
 ## Running inside NVIDIA NemoClaw + OpenShell on Dell GB10 Grace Blackwell
 ### Dell x NVIDIA NemoClaw Demo Contest 2026
 
-> An AI agent that monitors incoming creative assets, diagnoses technical issues, generates actionable QC reports, and creates a full provenance chain — running securely inside NVIDIA OpenShell on a Dell GB10.
+> An AI agent that monitors incoming creative assets, diagnoses technical issues, and generates actionable QC reports — running securely inside NVIDIA OpenShell on a Dell GB10.
+
+---
+
+## The Problem
+
+In M&E post-production, bad files travel silently through the pipeline until someone catches them — usually at the worst possible moment.
+
+A single out-of-spec clip going into a batch upscale job (wrong frame rate, wrong resolution, wrong audio settings) means everything gets reprocessed. Two days lost. Downstream departments affected. Nobody knows what happened because the production manager only assigns tasks — there is no visibility across the pipeline.
+
+CONDUCTOR catches the problem before it starts.
 
 ---
 
@@ -14,10 +24,8 @@ The agent:
 1. Scans a folder of MP4/MOV files
 2. Runs ffprobe on each file to extract technical specs
 3. Diagnoses issues: wrong resolution, wrong fps, wrong audio, short clips
-4. Computes a SHA-256 hash per file — tamper-evident provenance fingerprint
-5. Identifies which AI tool generated each clip from filename patterns
-6. Generates a JSON + PDF report with actionable diagnosis per file
-7. All inside a sandboxed OpenShell environment (Landlock + seccomp + netns)
+4. Generates a JSON + PDF report with actionable diagnosis per file
+5. All inside a sandboxed OpenShell environment (Landlock + seccomp + netns)
 
 ---
 
@@ -33,30 +41,18 @@ The agent:
 
 ## What CONDUCTOR Diagnoses
 
-| Check | Method | Notes |
-|-------|--------|-------|
-| Resolution (4K 3840x2160) | ffprobe | Exact value |
-| Frame rate (24fps) | ffprobe | Flags 18fps, 29fps, 60fps outliers |
-| Audio sample rate (48kHz) | ffprobe | Only flags if audio stream exists |
-| Short clip under 1 second | ffprobe | Exact duration |
-| Missing audio track | ffprobe | Stream count |
-| SHA-256 provenance hash | sha256sum | Per asset — tamper-evident |
-| AI model identification | Filename patterns | Kling AI, Runway, Sora, LTX, AnimateDiff |
-| Duplicate detection | SHA-256 comparison | Same hash = same file, regardless of name |
+| Check | Method | Confidence |
+|-------|--------|------------|
+| Resolution (4K 3840x2160) | ffprobe | Exact |
+| Asymmetric resolution (3840x2048) | ffprobe | Exact |
+| Frame rate — flags 18fps, 29fps, 60fps | ffprobe | Exact |
+| Audio sample rate (requires 48kHz) | ffprobe | Exact |
+| Missing audio track | ffprobe | Exact |
+| Short clip under 1 second | ffprobe | Exact |
+| Black frames (>0.5s) | ffmpeg blackdetect | Confirmed |
+| Freeze frames (>1s) | ffmpeg freezedetect | Confirmed |
 
----
-
-## Provenance and Asset Traceability
-
-In modern M&E production, AI-generated content enters the pipeline from multiple sources.
-CONDUCTOR answers the questions nobody else can:
-
-- **Which AI tool generated this clip?** — CONDUCTOR identifies Kling AI, Runway Seedance, Sora, LTX, AnimateDiff, WanVideo from filename patterns
-- **Has this file been modified since QC?** — SHA-256 changes if a single frame changes. You know instantly.
-- **Can I prove this asset was clean at delivery?** — The JSON report is the audit trail. Every file. Every hash. Every AI model. Timestamped.
-- **Same file, different name?** — SHA-256 catches exact duplicates regardless of what the file is called.
-
-The JSON report serves as a C2PA-style manifest: each asset entry includes the SHA-256 hash, detected AI model, QC result, timestamp, and failure reasons. This record travels with the production.
+All checks use ffprobe and ffmpeg exact values — no thresholds, no guessing, no false positives.
 
 ---
 
@@ -68,7 +64,6 @@ The JSON report serves as a C2PA-style manifest: each asset entry includes the S
 - OpenClaw TUI 2026.4.24
 - Qwen3.6-35B-A3B-FP8 via vLLM (local inference)
 - ffprobe / ffmpeg (installed by agent inside sandbox)
-- sha256sum (GNU coreutils — provenance hashing)
 - Node.js jsPDF / Python fpdf2 (PDF report generation inside sandbox)
 
 ---
@@ -113,10 +108,8 @@ In the OpenClaw TUI:
 ```
 You are a QC Agent. Scan /sandbox/qc2/ for all mp4 files.
 Run ffprobe on each to get resolution, fps, codec, audio sample rate, duration.
-Run sha256sum on each file for provenance.
 Flag FAIL if: not 4K (3840x2160), not 24fps, file HAS audio AND sample rate
 is not 48kHz, or duration under 1 second.
-Identify AI model from filename patterns (Kling, Runway, Sora, LTX, AnimateDiff).
 Save report as /sandbox/qc_conductor_report.json and generate
 /sandbox/qc_conductor_report.pdf. Helvetica font only, no unicode.
 ```
@@ -151,7 +144,8 @@ When prompted:
 - Model: `Qwen/Qwen3.6-35B-A3B-FP8`
 - Sandbox name: `my-assistant`
 
-> Note: The NemoClaw sandbox runs in a separate network namespace. Use your GB10 LAN IP (e.g. `192.168.100.126`), not `localhost` — the sandbox cannot resolve localhost.
+> Important: Use your GB10 LAN IP (e.g. `192.168.100.126`), not `localhost`.
+> The NemoClaw sandbox runs in a separate network namespace and cannot resolve localhost.
 
 ---
 
@@ -169,7 +163,7 @@ When prompted:
 
 Dell GB10 Grace Blackwell
 - NVIDIA GB10 Superchip GPU
-- 128GB unified memory (CPU + GPU)
+- 128GB unified memory (CPU + GPU shared)
 - Ubuntu Linux 24.04 LTS (native, not WSL)
 - Always-on, offline capable after model download
 
