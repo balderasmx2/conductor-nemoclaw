@@ -1,5 +1,5 @@
 # CONDUCTOR — QC Agent for M&E Post-Production
-## Running inside NVIDIA NemoClaw + OpenShell on Dell GB10 Grace Blackwell
+## Running inside NVIDIA NemoClaw + OpenShell on Dell GB10 
 ### Dell x NVIDIA NemoClaw Demo Contest 2026
 
 > An AI agent that monitors incoming creative assets, diagnoses technical issues, and generates actionable QC reports — running securely inside NVIDIA OpenShell on a Dell GB10.
