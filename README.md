@@ -154,4 +154,4 @@ Dell GB10 Grace Blackwell
 
 ---
 
-Gil Balderas — Dell Ambassador — M&E Filmmaker — GTC GenJam Winner (Vivemos) — Mexico — shotlock.tech
+Gil Balderas — M&E Filmmaker —  Mexico — shotlock.tech
