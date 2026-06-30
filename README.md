@@ -1,8 +1,8 @@
 # CONDUCTOR — QC Agent for M&E Post-Production
-## Running inside NVIDIA NemoClaw + OpenShell on Dell GB10 Grace Blackwell
+## Running inside NVIDIA NemoClaw on Dell GB10 Grace Blackwell
 ### Dell x NVIDIA NemoClaw Demo Contest 2026
 
-> An AI agent that monitors incoming creative assets, diagnoses technical issues, and generates actionable QC reports — running securely inside NVIDIA OpenShell on a Dell GB10.
+> An AI agent that monitors incoming creative assets, diagnoses technical issues, and generates actionable QC reports — running inside NVIDIA NemoClaw on a Dell GB10.
 
 ---
 
@@ -18,22 +18,22 @@ CONDUCTOR catches the problem before it starts.
 
 ## What It Does
 
-CONDUCTOR is a QC Agent for Media & Entertainment post-production. It runs inside NVIDIA NemoClaw + OpenShell on a Dell GB10 Grace Blackwell, scanning video files for technical issues and generating a full QC report — automatically, locally, with zero cloud dependency.
+CONDUCTOR is a QC Agent for Media & Entertainment post-production. It runs inside NVIDIA NemoClaw on a Dell GB10 Grace Blackwell, scanning video files for technical issues and generating a full QC report — automatically, locally, with zero cloud dependency.
 
 The agent:
 1. Scans a folder of MP4/MOV files
 2. Runs ffprobe on each file to extract exact technical specs
 3. Diagnoses issues with precise failure reasons
 4. Generates a JSON + PDF report — actionable, shareable, timestamped
-5. All inside a sandboxed OpenShell environment (Landlock + seccomp + netns)
+5. All managed by NVIDIA NemoClaw with sandboxed security isolation
 
 ---
 
 ## Demo Results
 
-- 9 real M&E production files scanned
-- 2 PASS, 7 FAIL diagnosed
-- PDF report generated automatically
+- 47 real M&E production files scanned
+- 5 critical issues diagnosed
+- 49-page PDF report generated automatically
 - 0 cloud API calls
 - 0 humans in the loop
 
@@ -58,11 +58,10 @@ All checks use ffprobe exact values — no estimation, no thresholds, no false p
 
 - Dell GB10 Grace Blackwell (128GB unified memory, NVIDIA GB10 GPU)
 - NVIDIA NemoClaw v0.0.41
-- NVIDIA OpenShell (Landlock + seccomp + netns isolation)
-- OpenClaw TUI 2026.4.24
+- Hermes Agent (NousResearch) — agent runtime
 - Qwen3.6-35B-A3B-FP8 via vLLM (local inference)
-- ffprobe / ffmpeg (installed by agent inside sandbox)
-- Node.js jsPDF / Python fpdf2 (PDF report generation)
+- ffprobe / ffmpeg — video analysis
+- Python fpdf2 — PDF report generation
 
 ---
 
@@ -81,42 +80,22 @@ VLLM_USE_FLASHINFER_SAMPLER=0 vllm serve Qwen/Qwen3.6-35B-A3B-FP8 \
 
 Wait for: `Application startup complete`
 
-### Step 2 — Connect to NemoClaw sandbox (Terminal 2)
+### Step 2 — Start Hermes Agent (Terminal 2)
 
 ```bash
-nemoclaw my-assistant connect
+source ~/.bashrc && hermes
 ```
 
-### Step 3 — Start OpenClaw TUI inside sandbox
+### Step 3 — Run the QC Agent
 
-```bash
-openclaw tui
-```
-
-### Step 4 — Copy video files into sandbox
-
-```bash
-docker cp /path/to/your/videos/. <container_id>:/sandbox/qc2/
-```
-
-### Step 5 — Run the QC Agent
-
-In the OpenClaw TUI:
+In the Hermes TUI:
 
 ```
-You are a QC Agent. Scan /sandbox/qc2/ for all mp4 files.
-Run ffprobe on each to get resolution, fps, codec, audio sample rate, duration.
+You are a QC Agent. Scan [your folder] for all mp4 files.
+Run ffprobe -v quiet -print_format json -show_streams -show_format on each file.
 Flag FAIL if: not 4K (3840x2160), not 24fps, file HAS audio AND sample rate
 is not 48kHz, or duration under 1 second.
-Save report as /sandbox/qc_conductor_report.json and generate
-/sandbox/qc_conductor_report.pdf. Helvetica font only, no unicode.
-```
-
-### Step 6 — Extract reports
-
-```bash
-docker cp <container_id>:/sandbox/qc_conductor_report.json ~/Downloads/
-docker cp <container_id>:/sandbox/qc_conductor_report.pdf ~/Downloads/
+Save qc_report.json and generate qc_report.pdf. Helvetica font only, no unicode.
 ```
 
 ---
@@ -140,18 +119,19 @@ When prompted:
 - Base URL: `http://192.168.x.x:9494/v1` — use your GB10 LAN IP, **not localhost**
 - API key: any string (vLLM local does not require auth)
 - Model: `Qwen/Qwen3.6-35B-A3B-FP8`
-- Sandbox name: `my-assistant`
 
 > Important: Use your GB10 LAN IP (e.g. `192.168.100.126`), not `localhost`.
-> The NemoClaw sandbox runs in a separate network namespace and cannot resolve localhost.
+> NemoClaw sandboxes run in a separate network namespace and cannot resolve localhost.
 
 ---
 
-## Why NemoClaw + OpenShell
+## Why NVIDIA NemoClaw
 
-- **Landlock filesystem isolation** — agent cannot access host files outside `/sandbox`
+NVIDIA NemoClaw manages the security sandbox where the agent runs. It provides:
+
+- **Landlock filesystem isolation** — agent cannot access files outside its designated folder
 - **seccomp syscall filtering** — blocks dangerous system calls
-- **netns network isolation** — agent cannot make unauthorized outbound connections
+- **Network namespace isolation** — agent cannot make unauthorized outbound connections
 - **Zero permissions by default** — all access is policy-enforced
 - **Inference stays private** — no data leaves the GB10
 
